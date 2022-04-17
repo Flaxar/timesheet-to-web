@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html xmlns:th="https://www.thymeleaf.org" lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Datepicker CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" integrity="sha512-mSYUmp1HYZDFaVKK//63EcZq4iFWFjxSL+Z3T/aCt4IO9Cejm03q3NKKYN6pFQzY0SBOr8h+eCIAZHPXcpZaNw==" crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+
+    <title>Admin - zaměstnanci</title>
+</head>
+
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.11.2/umd/popper.min.js" integrity="sha512-aDciVjp+txtxTJWsp8aRwttA0vR2sJMk/73ZT7ExuEHv7I5E6iyyobpFOlEFkq59mWW8ToYGuVZFnwhwIUisKA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+
+    <script th:inline="javascript">
+        let loadedEmployees;
+        let currentlyEditedEmployee;
+        let currentlyEditedId;
+        let currentlyEditedRow;
+        let modifyLogButton;
+        let deleteLogButton;
+
+        let tbody;
+
+        $(document).ready(() => {
+            modifyLogButton = document.getElementById('modifyButton');
+            deleteLogButton = document.getElementById('deleteButton');
+
+            tbody = document.getElementById('employeeTable').getElementsByTagName('tbody')[0];
+
+            _loadEmployeeList();
+        });
+
+        function _createTableTextCell(row, text) {
+            let newCell = row.insertCell();
+            let cellText = document.createTextNode(text);
+            newCell.appendChild(cellText);
+        }
+
+        function _getEmployeeById(id) {
+            for (const employee of loadedEmployees) {
+                if (employee.id === id) return employee;
+            }
+        }
+
+        function _loadEmployeeList() {
+            tbody.innerHTML = ''; // always reset table
+            loadedEmployees = [];
+            fetch('/api/employees/get').then((response) => {
+                response.json().then(employeeData => {
+                    loadedEmployees = employeeData;
+                    for (const employee of loadedEmployees) {
+                        let newRow = tbody.insertRow();
+                        newRow.dataset.employeeId = employee.id;
+                        _createTableTextCell(newRow, employee.name);
+                        _createTableTextCell(newRow, employee.department);
+                        _createTableTextCell(newRow, employee.workHoursType);
+                        _createTableTextCell(newRow, employee.workHoursPer100Days / 100);
+
+                        let newCell = newRow.insertCell();
+                        const newRowIndex = newRow.rowIndex;
+                        let newModifyButton = modifyLogButton.cloneNode(true);
+                        let newDeleteButton = deleteLogButton.cloneNode(true);
+                        newModifyButton.dataset.rowId = employee.id;
+                        newModifyButton.dataset.rowIndex = newRowIndex.toString();
+                        newModifyButton.hidden = false;
+                        newModifyButton.style.marginRight = '10px';
+                        newDeleteButton.dataset.rowId = employee.id;
+                        newDeleteButton.dataset.rowIndex = newRowIndex.toString();
+                        newDeleteButton.hidden = false;
+                        newCell.appendChild(newModifyButton);
+                        newCell.appendChild(newDeleteButton);
+                    }
+                });
+            }).catch(() => {
+                console.log("Error with fetching data: ");
+            });
+        }
+
+        function addEmployee() {
+            let somethingWrong = false;
+
+            let name = $('#add_name').val();
+            if (name === '' || name === null) somethingWrong = true;
+
+            let department = $('#add_department').val();
+            if (department === '' || department === null) somethingWrong = true;
+
+            let workHoursType = $('#add_workHoursType').val();
+            if (workHoursType === '' || workHoursType === null) somethingWrong = true;
+
+            let workHoursText = $('#add_workHours').val();
+            workHoursText = workHoursText.replaceAll(',', '.');
+            let workHoursDec = parseFloat(workHoursText);
+            if (workHoursText === '' ||
+                workHoursText === null ||
+                isNaN(workHoursDec) ||
+                workHoursDec === null) somethingWrong = true;
+
+            let select3 = document.getElementById("add_role");
+            let role = select3.options[select3.selectedIndex];
+            if (role.classList.contains("default-option")) somethingWrong = true;
+
+            if (!somethingWrong) {
+                let employeeData = {
+                    'name': name,
+                    'department': department,
+                    'workHoursType': workHoursType,
+                    'workHoursPer100Days': workHoursDec * 100,
+                    'role': role.text === "Šéf" ? "ADMIN" : "EMPLOYEE"
+                }
+                _addEmployee(employeeData);
+            }
+        }
+
+
+        function _addEmployee(employeeData) {
+            $.ajax({
+                type: "POST",
+                url: "/api/employee/add",
+                data: "json=" + JSON.stringify(employeeData),
+                success: function(response) {
+                    tbody.innerHTML = '';
+                    alert('Přihlašovací údaje nově přidaného zaměstnance jsou:\n' +
+                        'přihlašovací jméno: ' + response + "\n" +
+                        "heslo: default");
+                    _loadEmployeeList();
+                }
+            });
+        }
+
+
+
+        function showEditRow(callingButton) {
+            let rowId = parseInt(callingButton.dataset.rowId);
+
+            currentlyEditedId = rowId;
+            let rows = tbody.rows;
+            currentlyEditedRow = rows[callingButton.dataset.rowIndex - 1];
+
+            currentlyEditedEmployee = _getEmployeeById(rowId);
+            $('#edit_name').val(currentlyEditedEmployee.name);
+            $('#edit_department').val(currentlyEditedEmployee.department);
+            $('#edit_workHoursType').val(currentlyEditedEmployee.workHoursType);
+            $('#edit_workHours').val(currentlyEditedEmployee.workHoursPer100Days / 100);
+
+            let myModal = $('#editEmployeeModal');
+            myModal.modal('show');
+        }
+
+
+
+
+        function editEmployee() {
+            let somethingWrong = false;
+
+            let name = $('#edit_name').val();
+            if (name === '' || name === null) somethingWrong = true;
+
+            let department = $('#edit_department').val();
+            if (department === '' || department === null) somethingWrong = true;
+
+            let workHoursType = $('#edit_workHoursType').val();
+            if (workHoursType === '' || workHoursType === null) somethingWrong = true;
+
+            let workHoursText = $('#edit_workHours').val();
+            workHoursText = workHoursText.replaceAll(',', '.');
+            let workHoursDec = parseFloat(workHoursText);
+            if (workHoursText === '' ||
+                workHoursText === null ||
+                isNaN(workHoursDec) ||
+                workHoursDec === null) somethingWrong = true;
+
+            if (!somethingWrong) {
+                $('#edit_somethingWrongText').attr('hidden', true);
+
+                let employeeData = {
+                    'id': currentlyEditedId,
+                    'name': name,
+                    'department': department,
+                    'workHoursType': workHoursType,
+                    'workHoursPer100Days': workHoursDec * 100
+                }
+
+                _updateEmployee(employeeData);
+
+            } else {
+                $('#edit_somethingWrongText').attr('hidden', false);
+            }
+        }
+
+        function _updateEmployee(employeeData) {
+            $.ajax({
+                type: "POST",
+                url: "/api/employee/update",
+                data: "json=" + JSON.stringify(employeeData),
+                success: function() {
+                    tbody.innerHTML = '';
+                    _loadEmployeeList();
+                    let myModal = $('#editEmployeeModal');
+                    myModal.modal('hide');
+                }
+            });
+        }
+
+
+        function showDeleteRow(callingButton) {
+            currentlyEditedId = parseInt(callingButton.dataset.rowId);
+            let rows = tbody.rows;
+            currentlyEditedRow = rows[callingButton.dataset.rowIndex - 1];
+
+            let myModal = $('#deleteEmployeeModal');
+            myModal.modal('show');
+        }
+
+        function deleteEmployee() {
+            _deleteEmployeeFromDatabase(currentlyEditedId);
+
+            let myModal = $('#deleteEmployeeModal');
+            myModal.modal('hide');
+        }
+
+        function _deleteEmployeeFromDatabase(id) {
+            $.ajax({
+                type: "DELETE",
+                url: "/api/employee/delete",
+                data: "id=" + id,
+                success: function() {
+                    tbody.innerHTML = '';
+                    _loadEmployeeList();
+                }
+            });
+        }
+    </script>
+
+    <button type="button" style="float: right; display: inline; margin-right: 20px" class="btn btn-secondary" th:onclick="window.location.replace('/admin')">Zpět na hlavní stránku</button>
+    <h4 style="margin: 15px;">Přidání zaměstnance</h4>
+
+    <input type="text" class="form-control" id="add_name" style="width: 200px; float: none; display: inline" placeholder="Jméno">
+    <div style="margin: 5px; float: left;"></div>
+    <input type="text" class="form-control" id="add_department" style="width: 200px; float: none; display: inline" placeholder="Oddělení">
+    <div style="margin: 5px; float: left;"></div>
+    <input type="text" class="form-control" id="add_workHoursType" style="width: 200px; float: none; display: inline" placeholder="Typ úvazku">
+    <div style="margin: 5px; float: left;"></div>
+    <input type="text" class="form-control" id="add_workHours" style="width: 200px; float: none; display: inline" placeholder="Hodin denně">
+    <div style="margin: 5px; float: left;"></div>
+    <select class="form-select" id="add_role" style="width: 200px; float: none; display: inline">
+        <option selected class="default-option">Vyber roli</option>
+        <option>Zaměstnanec</option>
+        <option>Šéf</option>
+    </select>
+    <div style="margin: 5px; float: left;"></div>
+
+    <button type="button" style="float: none; display: inline" class="btn btn-primary" id="addEmployeeButton" th:onclick="addEmployee()">Přidat zaměstnance</button>
+    <div style="height: 5px"></div>
+    <a style="color: gray; margin-left: 50px">Všechny pole musí být vyplněné, pro přidání zaměstnance</a>
+    <div style="height: 20px"></div>
+    <h4 style="margin: 15px;">Seznam zaměstnanců</h4>
+
+
+    <table class="table table-striped table-bordered table-responsive" id="employeeTable">
+        <thead>
+            <th scope="col">Jméno</th>
+            <th scope="col">Oddělení</th>
+            <th scope="col">Typ úvazku</th>
+            <th scope="col">Hodin denně</th>
+            <th scope="col">Akce</th>
+        </thead>
+        <tbody id="employeeTbody">
+
+        </tbody>
+    </table>
+
+    <!--    edit row modal-->
+    <div class="modal" id="editEmployeeModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStaticBackdropLabel">Upravit zaměstnance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <a>Jméno</a>
+                    <input type="text" class="form-control" id="edit_name" placeholder="Jméno">
+                    <div style="height: 20px"></div>
+                    <a>Oddělení</a>
+                    <input type="text" class="form-control" id="edit_department" placeholder="Oddělení">
+                    <div style="height: 20px"></div>
+                    <a>Typ úvazku</a>
+                    <input type="text" class="form-control" id="edit_workHoursType" placeholder="Typ úvazku">
+                    <div style="height: 20px"></div>
+                    <a>Hodin denně</a>
+                    <input type="text" class="form-control" id="edit_workHours" placeholder="Pracovní hodiny">
+                    <div style="height: 20px"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <a style="color: red" id="edit_somethingWrongText" hidden>Některé pole není zadáno správně</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="button" class="btn btn-primary" th:onclick="editEmployee()">Upravit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--    delete activity modal-->
+    <div class="modal" id="deleteEmployeeModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteStaticBackdropLabel">Chcete opravdu odebrat tohoto zaměstnance?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ne</button>
+                    <button type="button" class="btn btn-primary" th:onclick="deleteEmployee()">Ano</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+    <button id="modifyButton" type="button" class="btn btn-secondary" style="width: min-content" th:onclick="showEditRow(this)" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"></path>
+            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"></path>
+        </svg>
+    </button>
+    <button id="deleteButton" type="button" class="btn btn-danger" th:onclick="showDeleteRow(this)" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash-fill" viewBox="0 0 16 16">
+            <path d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1H2.5zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5zM8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5zm3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0z"></path>
+        </svg>
+    </button>
+</body>
+
+</html>

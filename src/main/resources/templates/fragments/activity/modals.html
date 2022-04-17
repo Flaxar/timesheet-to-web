@@ -1,0 +1,68 @@
+<!--    edit/create/copy activity modal-->
+<div th:fragment="edit" class="modal" id="editActivityModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="editActivityModalForm" role="form" class="modal-content">
+            <input type="hidden" id="edit_activityId">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStaticBackdropLabel">
+                    <span class="action-title action-title-EDIT">Upravit aktivitu</span>
+                    <span class="action-title action-title-CREATE">Přidat aktivitu</span>
+                    <span class="action-title action-title-COPY">Duplikovat aktivitu</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Projekt</label>
+                    <select class="form-select" id="edit_projectSelect" required>
+                            <option selected disabled class="default-option"></option>
+                        </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Služba</label>
+                    <input type="text" class="form-control" id="edit_serviceInput" placeholder="Služba" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Detail aktivity</label>
+                    <textarea class="form-control" id="edit_serviceDetailInput" rows="3" placeholder="Detail aktivity"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Odpracováno hodin</label>
+                    <input type="number" class="form-control" id="edit_hoursWorkedInput" placeholder="Hodin odpracováno" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Období</label>
+                    <select class="form-select" id="edit_periodId" required></select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="submit" class="btn btn-primary" id="editSubmitButon">
+                    <span class="action-title action-title-EDIT">Upravit</span>
+                    <span class="action-title action-title-CREATE">Přidat</span>
+                    <span class="action-title action-title-COPY">Přidat</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!--    delete activity modal-->
+<div th:fragment="delete" class="modal" id="deleteActivityModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <input type="hidden" id="delete_activityId">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteStaticBackdropLabel">Chcete opravdu smazat tento záznam?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ne</button>
+                <button type="button" class="btn btn-primary" th:onclick="deleteRow()">Ano</button>
+            </div>
+        </div>
+    </div>
+</div>
